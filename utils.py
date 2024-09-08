@@ -1,5 +1,8 @@
 import matplotlib.pyplot as plt
 import torch
+import argparse
+import time
+import os
 
 # Objetivo: Esta função salva 10 imagens geradas durante o treinamento em um arquivo PNG. 
 # Ela é útil para visualizar as imagens geradas pela GAN ao longo das iterações.
@@ -8,6 +11,24 @@ import torch
 # A função também remove os eixos para não atrapalhar a visualização.
 
 def save_10_images(images, iter):
+    # Cria a pasta 'training' se ela não existir
+    if not os.path.exists('training'):
+        os.makedirs('training')
+    
+    # Cria uma figura com subplots de 2 linhas e 5 colunas (total de 10 imagens)
+    fig, axs = plt.subplots(2, 5, figsize=(10, 8))
+    
+    # Itera sobre as 10 primeiras imagens e seus eixos de subplot correspondentes
+    for i, ax in enumerate(axs.flatten()):
+        if i < len(images):  # Garante que não vá além do número de imagens
+            ax.imshow(images[i].detach().cpu().permute(1, 2, 0).numpy(), cmap='gray')
+        ax.axis('off')  # Remove os eixos para melhor visualização das imagens
+
+    # Salva a figura em um arquivo PNG com o nome baseado na iteração
+    plt.savefig(f'training/iter_{iter}.png')
+    plt.close()  # Fecha a figura para liberar memória
+
+def save_20_images(images, iter):
     # Cria uma figura com subplots de 4 linhas e 5 colunas (total de 20 imagens)
     fig, axs = plt.subplots(4, 5, figsize=(10, 8))
     
@@ -110,3 +131,42 @@ def _gradient_penalty(model: torch.nn.Module,
 
     # Retorna a penalidade de gradiente
     return gradient_penalty
+
+# Seção de teste pela linha de comando
+if __name__ == "__main__":
+    # Configurações de argumentos de linha de comando
+    parser = argparse.ArgumentParser(description="Teste as funções do utils.py")
+    parser.add_argument('--function', type=str, required=True, help="Função a ser testada: save_10_images, print_train_time ou gradient_penalty")
+    parser.add_argument('--iter', type=int, default=0, help="Iteração para salvar as imagens")
+    args = parser.parse_args()
+
+    # Testando a função `save_10_images`
+    if args.function == 'save_10_images':
+        # Criando imagens aleatórias para o teste
+        images = torch.randn(10, 1, 28, 28)  # Batch de 10 imagens no formato [B, C, H, W]
+        save_10_images(images, args.iter)
+        print(f"Imagens salvas na iteração {args.iter}")
+
+    # Testando a função `print_train_time`
+    elif args.function == 'print_train_time':
+        # Medir o tempo de treino (simulação)
+        start_time = time.time()
+        time.sleep(2)  # Simula 2 segundos de "treinamento"
+        end_time = time.time()
+        print_train_time(start_time, end_time, device=torch.device('cpu'))
+
+    # Testando a função `_gradient_penalty`
+    elif args.function == 'gradient_penalty':
+        # Criando um modelo simples para passar pelas funções
+        class SimpleDiscriminator(torch.nn.Module):
+            def forward(self, x):
+                return torch.sum(x, dim=(1, 2, 3), keepdim=True)  # Simplesmente soma todos os valores
+
+        model = SimpleDiscriminator().to(torch.device('cpu'))
+        real_images = torch.randn(4, 1, 28, 28, device=torch.device('cpu'))  # Batch de 4 imagens reais
+        fake_images = torch.randn(4, 1, 28, 28, device=torch.device('cpu'))  # Batch de 4 imagens falsas
+        penalty = _gradient_penalty(model, real_images, fake_images, device=torch.device('cpu'))
+        print(f"Penalidade de gradiente: {penalty.item()}")
+
+    else:
+        print("Função inválida. Escolha 'save_10_images', 'print_train_time' ou 'gradient_penalty'.")    
