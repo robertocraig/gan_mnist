@@ -132,6 +132,7 @@ class Discriminator(torch.nn.Module):
 
 
 # Seção principal para testes e uso via linha de comando
+# Seção principal para testes e uso via linha de comando
 if __name__ == "__main__":
     # Configuração dos argumentos da linha de comando
     parser = argparse.ArgumentParser(description="Testar o Gerador e o Discriminador")
@@ -145,21 +146,24 @@ if __name__ == "__main__":
         if args.model_type == 'conv':
             model = Generator()
             print("Gerador Conv criado")
+            input_tensor = torch.randn((8, 100, 1, 1))  # Aumenta o batch size para 8 para conv generator
         else:
             model = GeneratorMLP()
             print("Gerador MLP criado")
+            input_tensor = torch.randn((8, 100))  # Aumenta o batch size para 8 para MLP generator
     elif args.model == 'discriminator':
         if args.model_type == 'conv':
             model = Discriminator()
             print("Discriminador Conv criado")
+            input_tensor = torch.randn((8, 1, 28, 28))  # Batch size 8 para conv discriminator
         else:
             model = DiscriminatorMLP()
             print("Discriminador MLP criado")
+            input_tensor = torch.randn((8, 1, 28, 28))  # Batch size 8 para MLP discriminator
     else:
         raise ValueError("Modelo inválido. Escolha 'generator' ou 'discriminator'.")
 
-    # Testar o modelo com um tensor aleatório
-    input_tensor = torch.randn((1, 100, 1, 1)) if 'generator' in args.model else torch.randn((1, 1, 28, 28))
+    # Testar o modelo com o tensor de entrada
     output = model(input_tensor)
     print(f"Saída do modelo: {output.shape}")
 
