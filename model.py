@@ -1,5 +1,7 @@
 import torch
 import argparse
+import pytorch_lightning as pl
+from torch.optim import Adam
 
 class Generator(torch.nn.Module):
     def __init__(self):
@@ -130,8 +132,85 @@ class Discriminator(torch.nn.Module):
         x = self.conv(x)
         return x
 
+class GANLightningModule(pl.LightningModule):
+    def __init__(self, generator, discriminator, learning_rate=0.0002, beta1=0.5):
+        super(GANLightningModule, self).__init__()
+        self.generator = generator
+        self.discriminator = discriminator
+        self.learning_rate = learning_rate
+        self.beta1 = beta1
+        self.criterion = torch.nn.BCELoss()
 
-# Seção principal para testes e uso via linha de comando
+        # Salva hiperparâmetros para logging no PyTorch Lightning
+        self.save_hyperparameters(ignore=['generator', 'discriminator'])
+
+        # Configura a otimização manual
+        self.automatic_optimization = False
+
+    def forward(self, z):
+        # O forward é simplesmente o gerador criando uma imagem a partir de um vetor z
+        return self.generator(z)
+
+    def configure_optimizers(self):
+        # Otimizadores para o gerador e o discriminador
+        optimizer_g = Adam(self.generator.parameters(), lr=self.learning_rate, betas=(self.beta1, 0.999))
+        optimizer_d = Adam(self.discriminator.parameters(), lr=self.learning_rate, betas=(self.beta1, 0.999))
+        return [optimizer_g, optimizer_d]
+
+    def training_step(self, batch, batch_idx):
+        images, _ = batch
+        batch_size = images.size(0)
+        
+        # Otimizadores
+        optimizer_g, optimizer_d = self.optimizers()
+
+        # Cria labels reais e falsos para a perda
+        real_labels = torch.ones(batch_size, 1, device=self.device)
+        fake_labels = torch.zeros(batch_size, 1, device=self.device)
+
+        # ---------------------------------------------------------------------
+        # Treina o discriminador
+        # ---------------------------------------------------------------------
+        # Imagens reais
+        real_preds = self.discriminator(images)
+        real_preds = real_preds.view(-1, 1)  # Ajusta a forma de real_preds para (batch_size, 1)
+        real_loss = self.criterion(real_preds, real_labels)
+
+        # Imagens falsas (geradas pelo gerador)
+        z = torch.randn(batch_size, 100, 1, 1, device=self.device)  # Vetor de ruído
+        fake_images = self.generator(z)
+        fake_preds = self.discriminator(fake_images.detach())
+        fake_preds = fake_preds.view(-1, 1)  # Ajusta a forma de fake_preds para (batch_size, 1)
+        fake_loss = self.criterion(fake_preds, fake_labels)
+
+        # Perda total do discriminador
+        d_loss = (real_loss + fake_loss) / 2
+        self.log('d_loss', d_loss, on_step=True, on_epoch=True, prog_bar=True)
+
+        # Otimiza o discriminador
+        optimizer_d.zero_grad()
+        self.manual_backward(d_loss)
+        optimizer_d.step()
+
+        # ---------------------------------------------------------------------
+        # Treina o gerador
+        # ---------------------------------------------------------------------
+        # Gera imagens falsas e tenta enganar o discriminador
+        fake_images = self.generator(z)  # Reutilizando z
+        fake_preds = self.discriminator(fake_images)
+        fake_preds = fake_preds.view(-1, 1)  # Ajusta a forma de fake_preds para (batch_size, 1)
+
+        # Gerador quer que o discriminador acredite que as imagens falsas são reais
+        g_loss = self.criterion(fake_preds, real_labels)
+        self.log('g_loss', g_loss, on_step=True, on_epoch=True, prog_bar=True)
+
+        # Otimiza o gerador
+        optimizer_g.zero_grad()
+        self.manual_backward(g_loss)
+        optimizer_g.step()
+
+        return {'d_loss': d_loss, 'g_loss': g_loss}
+
 # Seção principal para testes e uso via linha de comando
 if __name__ == "__main__":
     # Configuração dos argumentos da linha de comando
