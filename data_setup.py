@@ -2,6 +2,7 @@ import pytorch_lightning as pl
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
 import os
+import argparse
 
 # Detecta o número de workers
 num_workers = os.cpu_count()
@@ -51,7 +52,26 @@ class MNISTDataModule(pl.LightningDataModule):
         )
 
 if __name__ == "__main__":
-    mnist_dm = MNISTDataModule(batch_size=32, num_workers=4, pin_memory=True, persistent_workers=True)
+    # Configurando argparse para aceitar argumentos de linha de comando
+    parser = argparse.ArgumentParser(description="Carregar o MNIST DataModule")
+
+    # Argumentos opcionais com valores padrão
+    parser.add_argument('--batch_size', type=int, default=64, help='Tamanho do batch')
+    parser.add_argument('--num_workers', type=int, default=num_workers, help='Número de workers para carregar os dados')
+    parser.add_argument('--pin_memory', type=bool, default=True, help='Usar pin_memory')
+    parser.add_argument('--persistent_workers', type=bool, default=True, help='Usar persistent_workers')
+
+    # Parsing dos argumentos
+    args = parser.parse_args()
+
+    # Instanciando o DataModule com os argumentos passados
+    mnist_dm = MNISTDataModule(
+        batch_size=args.batch_size, 
+        num_workers=args.num_workers, 
+        pin_memory=args.pin_memory, 
+        persistent_workers=args.persistent_workers
+    )
+    
     mnist_dm.prepare_data()  # Faz o download do dataset
     mnist_dm.setup('fit')  # Configura o dataloader para o treinamento
 
