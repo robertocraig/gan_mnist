@@ -1,9 +1,13 @@
 import pytorch_lightning as pl
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
+import os
+
+# Detecta o número de workers
+num_workers = os.cpu_count()
 
 class MNISTDataModule(pl.LightningDataModule):
-    def __init__(self, batch_size=64, num_workers=4, pin_memory=True, persistent_workers=True):
+    def __init__(self, batch_size=64, num_workers=num_workers, pin_memory=True, persistent_workers=True):
         super().__init__()
         self.batch_size = batch_size
         self.num_workers = num_workers
@@ -51,10 +55,13 @@ if __name__ == "__main__":
     mnist_dm.prepare_data()  # Faz o download do dataset
     mnist_dm.setup('fit')  # Configura o dataloader para o treinamento
 
+    # Exibe número de workers sendo usados
+    print(f"Usando {num_workers} workers")
+
     # Exibe o número de batches no dataloader de treinamento
     train_loader = mnist_dm.train_dataloader()
     print(f"Total de batches no DataLoader de treino: {len(train_loader)}")
-
+    
     # Mostra um exemplo de batch
     for batch in train_loader:
         images, labels = batch
