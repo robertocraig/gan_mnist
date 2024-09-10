@@ -1,6 +1,6 @@
 import torch
 import argparse
-import pytorch_lightning as pl
+#import pytorch_lightning as pl
 from torch.optim import Adam
 
 class Generator(torch.nn.Module):
